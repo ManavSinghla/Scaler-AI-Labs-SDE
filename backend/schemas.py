@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from pydantic import BaseModel, ConfigDict
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 class QuestionOptionBase(BaseModel):
@@ -14,8 +14,7 @@ class QuestionOptionOut(QuestionOptionBase):
     id: str
     question_id: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class QuestionBase(BaseModel):
     question_type: str
@@ -35,8 +34,7 @@ class QuestionOut(QuestionBase):
     form_id: str
     options: List[QuestionOptionOut] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class LogicRuleBase(BaseModel):
     source_question_id: str
@@ -51,8 +49,7 @@ class LogicRuleOut(LogicRuleBase):
     id: str
     form_id: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class FormBase(BaseModel):
     title: str
@@ -85,8 +82,7 @@ class FormOut(FormBase):
     logic_rules: List[LogicRuleOut] = []
     response_count: Optional[int] = 0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class QuestionReorderItem(BaseModel):
     id: str
@@ -103,10 +99,9 @@ class ResponseSubmit(BaseModel):
 class AnswerOut(BaseModel):
     id: str
     question_id: str
-    answer_value: Optional[str]
+    answer_value: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ResponseOut(BaseModel):
     id: str
@@ -115,11 +110,10 @@ class ResponseOut(BaseModel):
     completion_time_seconds: int
     answers: List[AnswerOut] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class AnalyticsSummary(BaseModel):
     total_responses: int
     completion_rate: float
     avg_completion_time_seconds: float
-    question_analytics: List[dict]
+    question_analytics: List[Dict[str, Any]]

@@ -1,14 +1,14 @@
+from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 import models, schemas
-import uuid
 
 def get_forms(db: Session):
     forms = db.query(models.Form).order_by(models.Form.created_at.desc()).all()
     result = []
     for form in forms:
         resp_count = db.query(func.count(models.Response.id)).filter(models.Response.form_id == form.id).scalar()
-        form_dict = schemas.FormOut.from_orm(form)
+        form_dict = schemas.FormOut.model_validate(form)
         form_dict.response_count = resp_count
         result.append(form_dict)
     return result
@@ -18,7 +18,7 @@ def get_form(db: Session, form_id: str):
     if not form:
         return None
     resp_count = db.query(func.count(models.Response.id)).filter(models.Response.form_id == form.id).scalar()
-    form_dict = schemas.FormOut.from_orm(form)
+    form_dict = schemas.FormOut.model_validate(form)
     form_dict.response_count = resp_count
     return form_dict
 
@@ -27,7 +27,7 @@ def get_form_by_share_id(db: Session, share_id: str):
     if not form:
         return None
     resp_count = db.query(func.count(models.Response.id)).filter(models.Response.form_id == form.id).scalar()
-    form_dict = schemas.FormOut.from_orm(form)
+    form_dict = schemas.FormOut.model_validate(form)
     form_dict.response_count = resp_count
     return form_dict
 
@@ -88,7 +88,7 @@ def update_form(db: Session, form_id: str, form_in: schemas.FormUpdate):
     db_form = db.query(models.Form).filter(models.Form.id == form_id).first()
     if not db_form:
         return None
-    for field, val in form_in.dict(exclude_unset=True).items():
+    for field, val in form_in.model_dump(exclude_unset=True).items():
         setattr(db_form, field, val)
     db.commit()
     db.refresh(db_form)
@@ -222,12 +222,11 @@ def delete_question(db: Session, question_id: str):
     db_q = db.query(models.Question).filter(models.Question.id == question_id).first()
     if not db_q:
         return False
-    form_id = db_q.order_index
     db.delete(db_q)
     db.commit()
     return True
 
-def reorder_questions(db: Session, form_id: str, items: list[schemas.QuestionReorderItem]):
+def reorder_questions(db: Session, form_id: str, items: List[schemas.QuestionReorderItem]):
     for item in items:
         db.query(models.Question).filter(models.Question.id == item.id, models.Question.form_id == form_id).update(
             {"order_index": item.order_index}

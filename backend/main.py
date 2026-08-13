@@ -1,20 +1,31 @@
-from fastapi import FastAPI, Depends, HTTPException, Header, Response
+from contextlib import asynccontextmanager
+import io
+import csv
+from typing import List, Optional
+
+from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-import io, csv
-from typing import List, Optional
 
 from database import engine, Base, get_db
 import models, schemas, crud
 from seed import seed_database
 
-Base.metadata.create_all(bind=engine)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Auto-seed database if empty
+    db = next(get_db())
+    form_count = db.query(models.Form).count()
+    if form_count == 0:
+        seed_database()
+    yield
 
 app = FastAPI(
     title="Typeform 3D Clone API",
     description="Backend API for 3D Modern Typeform Builder and Respondent Flow",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -24,14 +35,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.on_event("startup")
-def startup_event():
-    # Auto-seed database if empty
-    db = next(get_db())
-    form_count = db.query(models.Form).count()
-    if form_count == 0:
-        seed_database()
 
 @app.get("/api/health")
 def health_check():

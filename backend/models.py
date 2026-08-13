@@ -4,7 +4,7 @@ from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, T
 from sqlalchemy.orm import relationship
 from database import Base
 
-def generate_uuid():
+def generate_uuid() -> str:
     return str(uuid.uuid4())
 
 class Form(Base):
@@ -15,7 +15,7 @@ class Form(Base):
     description = Column(Text, nullable=True, default="")
     cover_image = Column(String, nullable=True)
     status = Column(String, default="draft")  # draft, published
-    theme = Column(String, default="cyber_neon") # cyber_neon, deep_space, sunset_glass, emerald_dark
+    theme = Column(String, default="cyber_neon")  # cyber_neon, deep_space, sunset_glass, emerald_dark
     share_id = Column(String, unique=True, index=True, default=generate_uuid)
     thank_you_title = Column(String, default="Thank you!")
     thank_you_description = Column(Text, default="Your response has been recorded.")
@@ -31,7 +31,7 @@ class Question(Base):
 
     id = Column(String, primary_key=True, default=generate_uuid)
     form_id = Column(String, ForeignKey("forms.id", ondelete="CASCADE"), nullable=False)
-    question_type = Column(String, nullable=False) # short_text, long_text, multiple_choice, dropdown, email, number, yes_no, rating, file_upload
+    question_type = Column(String, nullable=False)  # short_text, long_text, multiple_choice, dropdown, email, number, yes_no, rating, file_upload
     title = Column(Text, nullable=False)
     description = Column(Text, nullable=True, default="")
     order_index = Column(Integer, nullable=False, default=0)
@@ -61,9 +61,9 @@ class LogicRule(Base):
     id = Column(String, primary_key=True, default=generate_uuid)
     form_id = Column(String, ForeignKey("forms.id", ondelete="CASCADE"), nullable=False)
     source_question_id = Column(String, ForeignKey("questions.id", ondelete="CASCADE"), nullable=False)
-    condition_operator = Column(String, nullable=False) # equals, not_equals, contains, greater_than, less_than
+    condition_operator = Column(String, nullable=False)  # equals, not_equals, contains, greater_than, less_than
     condition_value = Column(String, nullable=False)
-    target_question_id = Column(String, nullable=False) # question_id or 'END'
+    target_question_id = Column(String, nullable=False)  # question_id or 'END'
 
     form = relationship("Form", back_populates="logic_rules")
 
@@ -86,7 +86,7 @@ class Answer(Base):
     id = Column(String, primary_key=True, default=generate_uuid)
     response_id = Column(String, ForeignKey("responses.id", ondelete="CASCADE"), nullable=False)
     question_id = Column(String, ForeignKey("questions.id", ondelete="CASCADE"), nullable=False)
-    answer_value = Column(Text, nullable=True) # Text representation or JSON
+    answer_value = Column(Text, nullable=True)  # Text representation or JSON
 
     response = relationship("Response", back_populates="answers")
     question = relationship("Question", back_populates="answers")
