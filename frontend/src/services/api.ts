@@ -1,7 +1,9 @@
 import axios from 'axios';
 import { Form, Question, ResponseSubmit, FormResponse, AnalyticsSummary } from '../types/form';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+let rawBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+rawBaseUrl = rawBaseUrl.replace(/\/+$/, '');
+const API_BASE_URL = rawBaseUrl.endsWith('/api') ? rawBaseUrl : `${rawBaseUrl}/api`;
 
 const api = axios.create({
   baseURL: API_BASE_URL,

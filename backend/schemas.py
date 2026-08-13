@@ -1,3 +1,8 @@
+"""
+Typeform 3D Engine - Pydantic v2 Request & Response Serialization Schemas
+Type-safe data transfer objects for REST API requests and ORM serialization.
+"""
+
 from pydantic import BaseModel, ConfigDict
 from typing import List, Optional, Dict, Any
 from datetime import datetime

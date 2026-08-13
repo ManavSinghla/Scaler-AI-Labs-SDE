@@ -1,9 +1,15 @@
+"""
+Typeform 3D Engine - Database Operations & Query Controller
+Handles Forms CRUD, Questions reordering, Response submissions, and Analytics aggregation.
+"""
+
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 import models, schemas
 
-def get_forms(db: Session):
+def get_forms(db: Session) -> List[schemas.FormOut]:
+    """Retrieve all creator forms ordered by creation date with total response counts."""
     forms = db.query(models.Form).order_by(models.Form.created_at.desc()).all()
     result = []
     for form in forms:
@@ -13,7 +19,8 @@ def get_forms(db: Session):
         result.append(form_dict)
     return result
 
-def get_form(db: Session, form_id: str):
+def get_form(db: Session, form_id: str) -> Optional[schemas.FormOut]:
+    """Fetch a single form by ID with child questions, options, and logic rules."""
     form = db.query(models.Form).filter(models.Form.id == form_id).first()
     if not form:
         return None
@@ -22,7 +29,8 @@ def get_form(db: Session, form_id: str):
     form_dict.response_count = resp_count
     return form_dict
 
-def get_form_by_share_id(db: Session, share_id: str):
+def get_form_by_share_id(db: Session, share_id: str) -> Optional[schemas.FormOut]:
+    """Fetch a public form by unique share slug for respondent submission flow."""
     form = db.query(models.Form).filter(models.Form.share_id == share_id).first()
     if not form:
         return None
@@ -31,7 +39,8 @@ def get_form_by_share_id(db: Session, share_id: str):
     form_dict.response_count = resp_count
     return form_dict
 
-def create_form(db: Session, form_in: schemas.FormCreate):
+def create_form(db: Session, form_in: schemas.FormCreate) -> Optional[schemas.FormOut]:
+    """Create a new Form entity along with nested questions, choices, and logic rules."""
     db_form = models.Form(
         title=form_in.title,
         description=form_in.description,
@@ -44,7 +53,6 @@ def create_form(db: Session, form_in: schemas.FormCreate):
     db.add(db_form)
     db.flush()
 
-    # Add questions if provided
     for q_idx, q_data in enumerate(form_in.questions):
         db_q = models.Question(
             form_id=db_form.id,
@@ -69,7 +77,6 @@ def create_form(db: Session, form_in: schemas.FormCreate):
             )
             db.add(db_opt)
 
-    # Add logic rules if provided
     for l_data in form_in.logic_rules:
         db_l = models.LogicRule(
             form_id=db_form.id,
@@ -84,7 +91,8 @@ def create_form(db: Session, form_in: schemas.FormCreate):
     db.refresh(db_form)
     return get_form(db, db_form.id)
 
-def update_form(db: Session, form_id: str, form_in: schemas.FormUpdate):
+def update_form(db: Session, form_id: str, form_in: schemas.FormUpdate) -> Optional[schemas.FormOut]:
+    """Update form attributes (title, status, theme, thank-you screen settings)."""
     db_form = db.query(models.Form).filter(models.Form.id == form_id).first()
     if not db_form:
         return None
@@ -94,7 +102,8 @@ def update_form(db: Session, form_id: str, form_in: schemas.FormUpdate):
     db.refresh(db_form)
     return get_form(db, form_id)
 
-def delete_form(db: Session, form_id: str):
+def delete_form(db: Session, form_id: str) -> bool:
+    """Delete a form and cascade delete associated questions and responses."""
     db_form = db.query(models.Form).filter(models.Form.id == form_id).first()
     if not db_form:
         return False
@@ -102,7 +111,8 @@ def delete_form(db: Session, form_id: str):
     db.commit()
     return True
 
-def duplicate_form(db: Session, form_id: str):
+def duplicate_form(db: Session, form_id: str) -> Optional[schemas.FormOut]:
+    """Clone an existing form including all questions, option choices, and logic rules."""
     orig = db.query(models.Form).filter(models.Form.id == form_id).first()
     if not orig:
         return None
@@ -119,7 +129,7 @@ def duplicate_form(db: Session, form_id: str):
     db.add(new_form)
     db.flush()
 
-    q_map = {} # old_q_id -> new_q_id
+    q_map = {}
     for q in orig.questions:
         new_q = models.Question(
             form_id=new_form.id,
@@ -160,7 +170,8 @@ def duplicate_form(db: Session, form_id: str):
     db.commit()
     return get_form(db, new_form.id)
 
-def add_question(db: Session, form_id: str, q_in: schemas.QuestionCreate):
+def add_question(db: Session, form_id: str, q_in: schemas.QuestionCreate) -> models.Question:
+    """Append a new question to a form at the highest order index."""
     max_idx = db.query(func.max(models.Question.order_index)).filter(models.Question.form_id == form_id).scalar()
     next_idx = (max_idx + 1) if max_idx is not None else 0
 
@@ -191,7 +202,8 @@ def add_question(db: Session, form_id: str, q_in: schemas.QuestionCreate):
     db.refresh(db_q)
     return db_q
 
-def update_question(db: Session, question_id: str, q_in: schemas.QuestionCreate):
+def update_question(db: Session, question_id: str, q_in: schemas.QuestionCreate) -> Optional[models.Question]:
+    """Update question attributes and recreate option choices."""
     db_q = db.query(models.Question).filter(models.Question.id == question_id).first()
     if not db_q:
         return None
@@ -203,7 +215,6 @@ def update_question(db: Session, question_id: str, q_in: schemas.QuestionCreate)
     db_q.min_val = q_in.min_val
     db_q.max_val = q_in.max_val
 
-    # Replace options
     db.query(models.QuestionOption).filter(models.QuestionOption.question_id == question_id).delete()
     for idx, opt in enumerate(q_in.options or []):
         db_opt = models.QuestionOption(
@@ -218,7 +229,8 @@ def update_question(db: Session, question_id: str, q_in: schemas.QuestionCreate)
     db.refresh(db_q)
     return db_q
 
-def delete_question(db: Session, question_id: str):
+def delete_question(db: Session, question_id: str) -> bool:
+    """Delete a specific question."""
     db_q = db.query(models.Question).filter(models.Question.id == question_id).first()
     if not db_q:
         return False
@@ -226,7 +238,8 @@ def delete_question(db: Session, question_id: str):
     db.commit()
     return True
 
-def reorder_questions(db: Session, form_id: str, items: List[schemas.QuestionReorderItem]):
+def reorder_questions(db: Session, form_id: str, items: List[schemas.QuestionReorderItem]) -> bool:
+    """Batch update order index for questions in drag-and-drop builder."""
     for item in items:
         db.query(models.Question).filter(models.Question.id == item.id, models.Question.form_id == form_id).update(
             {"order_index": item.order_index}
@@ -234,7 +247,8 @@ def reorder_questions(db: Session, form_id: str, items: List[schemas.QuestionReo
     db.commit()
     return True
 
-def submit_response(db: Session, share_id: str, resp_in: schemas.ResponseSubmit, user_agent: str = None):
+def submit_response(db: Session, share_id: str, resp_in: schemas.ResponseSubmit, user_agent: Optional[str] = None) -> Optional[models.Response]:
+    """Record a public form submission along with individual question answers."""
     form = db.query(models.Form).filter(models.Form.share_id == share_id).first()
     if not form:
         return None
@@ -260,11 +274,12 @@ def submit_response(db: Session, share_id: str, resp_in: schemas.ResponseSubmit,
     db.refresh(db_resp)
     return db_resp
 
-def get_responses_for_form(db: Session, form_id: str):
-    responses = db.query(models.Response).filter(models.Response.form_id == form_id).order_by(models.Response.submitted_at.desc()).all()
-    return responses
+def get_responses_for_form(db: Session, form_id: str) -> List[models.Response]:
+    """Retrieve all submissions for a form ordered by submission timestamp."""
+    return db.query(models.Response).filter(models.Response.form_id == form_id).order_by(models.Response.submitted_at.desc()).all()
 
-def get_analytics_for_form(db: Session, form_id: str):
+def get_analytics_for_form(db: Session, form_id: str) -> Optional[Dict[str, Any]]:
+    """Compute overall form performance metrics and per-question analytics."""
     form = db.query(models.Form).filter(models.Form.id == form_id).first()
     if not form:
         return None
@@ -274,7 +289,7 @@ def get_analytics_for_form(db: Session, form_id: str):
 
     q_analytics = []
     for q in form.questions:
-        q_data = {
+        q_data: Dict[str, Any] = {
             "question_id": q.id,
             "title": q.title,
             "question_type": q.question_type,
@@ -288,7 +303,7 @@ def get_analytics_for_form(db: Session, form_id: str):
         q_data["total_answers"] = len(answers)
 
         if q.question_type in ["multiple_choice", "dropdown", "yes_no"]:
-            counts = {}
+            counts: Dict[str, int] = {}
             for opt in q.options:
                 counts[opt.option_label] = 0
             if q.question_type == "yes_no":
