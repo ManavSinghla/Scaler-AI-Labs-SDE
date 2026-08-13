@@ -72,6 +72,7 @@ export function App() {
         status: 'draft',
         questions: [
           {
+            id: crypto.randomUUID(),
             question_type: 'short_text',
             title: 'What is your name?',
             description: 'Enter your full name',
